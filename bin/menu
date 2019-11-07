@@ -65,17 +65,14 @@ menu () sed -r "
     s/!([^${(j::)chosen}])/$hl_off/
 " $template
 
+answer () { read -sk1 it; [[ $'\n' != $it ]] }
+
 choose ${(s:,:)1?content of &cpt}
 
-while {true} {
-    clear; menu; read -sk1 it
-    case $it {
-        $'\n') break ;;
-        *)  [[ ${+key_for[$it]} ]] &&
-            toggle $it ||
-            print -u2 "'$it' not found"
-        ;;
-    }
+while {clear; menu ; answer } {
+    [[ ${+key_for[$it]} ]] &&
+        toggle $it ||
+        print -u2 "'$it' not found"
 }
 
 # perl join ',', @key_for{@chosen}
