@@ -1,0 +1,83 @@
+#! /usr/bin/env zsh
+
+setopt localoptions braceccl extendedglob nounset warncreateglobal errexit
+# this is the menu template
+local template=$(mktemp)
+cat <<\END > $template
+  !.  scan the current buffer ('wrapscan' is ignored)
+  !w  scan buffers from other windows
+  !b  scan other loaded buffers that are in the buffer list
+  !u  scan the unloaded buffers that are in the buffer list
+  !U  scan the buffers that are not in the buffer list
+  !k  scan the files given with the 'dictionary' option
+  ksp!ell  use the currently active spell checking |spell|
+  k{dict}
+    scan the file {dict}.  Several "k" flags can be given,
+    patterns are valid too.  For example:
+    :set cpt=k/usr/dict/*,k~/spanish
+  !s  scan the files given with the 'thesaurus' option
+  s{tsr}
+     scan the file {tsr}.  Several "s" flags can be given,
+     patterns are valid too.
+  !i  scan current and included files
+  !d  scan current and included files
+    for defined name or macro |i_CTRL-X_CTRL-D|
+  !]  tag completion
+  !t  same as "]"
+END
+
+# temporary keys for loops
+alias @='for it'
+local it= k= v=
+
+# highlight accelerators (when on and off)
+local hl_on='%B%F{white}\\1%f%b' hl_off='%B%F{red}\\1%f%b'
+@ ( hl_{on,off} ) print -Pv $it ${(P)it}
+
+# for every words containing a '!' that exists in the template
+# - the accelerator key is the symbol after '!'
+# - the key itself is the word without '!'
+#
+# example: ksp!ell => key_for[e]=kspell
+typeset -A key_for=()
+@ ( ${(M)$(< $template ):#*!*} )
+    key_for[$it[(( it[(I)!] + 1 ))]]=${it/!/}
+
+# those are the options set to on
+local -aU chosen=()
+
+# set all the given keys to on
+choose  () chosen+=( $@ )
+
+# true if if one of the chosen options matches the glob
+chosen  () (( $chosen[(I)${1?the key of the option}] ))
+toggle () {
+    local it=${1?a key that can be chosen}
+    chosen $it  && dismiss $it || choose $it
+}
+
+# dismiss an option
+dismiss () chosen=( ${chosen:#${1?glob matching keys to remove)}} )
+
+# shows the menu
+menu () sed -r "
+    s/!([${(j::)chosen}])/$hl_on/
+    s/!([^${(j::)chosen}])/$hl_off/
+" $template
+
+choose ${(s:,:)1?content of &cpt}
+
+while {true} {
+    clear; menu; read -sk1 it
+    case $it {
+        $'\n') break ;;
+        *)  [[ ${+key_for[$it]} ]] &&
+            toggle $it ||
+            print -u2 "'$it' not found"
+        ;;
+    }
+}
+
+# perl join ',', @key_for{@chosen}
+print setlocal cpt=${(j:,:)${chosen/(#m)*/$key_for[$MATCH]}} > ~/.v
+rm $template
