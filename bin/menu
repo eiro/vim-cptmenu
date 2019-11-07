@@ -49,7 +49,7 @@ local -aU chosen=()
 # set all the given keys to on
 choose  () chosen+=( $@ )
 
-# true if if one of the chosen options matches the glob
+# true if one of the chosen options matches the glob
 chosen  () (( $chosen[(I)${1?the key of the option}] ))
 toggle () {
     local it=${1?a key that can be chosen}
